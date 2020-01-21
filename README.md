@@ -9,6 +9,10 @@ An Inkscape extension for automating the process of adding cut lines to create a
 - Information text adjustement. 
 - Category changes to "Fablab" for easier navigation
 
+**v0.4 modifications:**
+- Migrated to work with inkscape 1.0+
+- Reverted Category to Render
+
 **To install:**
 
 copy living\_hinge.inx and living\_hinge.py to the inkscape/extensions directory on your computer.
@@ -18,3 +22,4 @@ copy living\_hinge.inx and living\_hinge.py to the inkscape/extensions directory
 - Licence GNU GPL v3
 - Copyright (c) 2013 Mark Endicott
 - v0.3 modifications (c) 2017 Sylvain Garnavault 
+- v0.4 modifications (c) 2020 Tuomas Lehtonen

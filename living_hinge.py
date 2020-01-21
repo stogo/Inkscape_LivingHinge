@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 """
-living_hinge.py
+hinge_cuts.py
 A module for creating lines to laser cut living hinges
 
 Copyright (C) 2013 Mark Endicott; drphonon@gmail.com
@@ -21,9 +21,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
 """ 
-Change in version 0.2
-
-Changed self.unittouu to self.unittouu
+Change in version 0.2.
+Changed self.unittouu to self.svg.unittouu
 and self.uutounit to self.uutounit
 to make it work with Inkscape 0.91
 Thanks to Pete Prodoehl for pointing this out.
@@ -31,22 +30,26 @@ Thanks to Pete Prodoehl for pointing this out.
 
 """ 
 Change in version 0.3
-
 Add a direction option so the cuts can be done in the X or Y direction.
 Modification by Sylvain GARNAVAULT; garnav@wanadoo.fr
 """
 
-
-__version__ = "0.3"
+""" 
+Change in version 0.4.
+Python3 / inkscape 1.0 migration
+"""
+__version__ = "0.4" 
 
 import sys,inkex,simplestyle,gettext
 _ = gettext.gettext
 
+from lxml import etree
+
 def drawS(parent, XYstring):         # Draw lines from a list
   name='part'
-  style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width': self.unittouu("0.1 mm") }
+  style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width': self.svg.unittouu("0.1 mm") }
   drw = {'style':simplestyle.formatStyle(style),inkex.addNS('label','inkscape'):name,'d':XYstring}
-  inkex.etree.SubElement(parent, inkex.addNS('path','svg'), drw )
+  etree.SubElement(parent, inkex.addNS('path','svg'), drw )
   return
 
 
@@ -55,11 +58,11 @@ class HingeCuts(inkex.Effect):
       # Call the base class constructor.
       inkex.Effect.__init__(self)
       # Define options - Must match to the <param> elements in the .inx file
-      self.OptionParser.add_option('--direction',action='store',type='string', dest='direction',default='y',help='cuts direction')
-      self.OptionParser.add_option('--unit',action='store',type='string', dest='unit',default='mm',help='units of measurement')
-      self.OptionParser.add_option('--cut_length',action='store',type='float', dest='cut_length',default=0,help='length of the cuts for the hinge.')
-      self.OptionParser.add_option('--gap_length',action='store',type='float', dest='gap_length',default=0,help='separation distance between successive hinge cuts.')
-      self.OptionParser.add_option('--sep_distance',action='store',type='float', dest='sep_distance',default=0,help='distance between successive lines of hinge cuts.')
+      self.arg_parser.add_argument('--direction',action='store', dest='direction',default='y',help='cuts direction')
+      self.arg_parser.add_argument('--unit',action='store', dest='unit',default='mm',help='units of measurement')
+      self.arg_parser.add_argument('--cut_length',action='store',type=float, dest='cut_length',default=0,help='length of the cuts for the hinge.')
+      self.arg_parser.add_argument('--gap_length',action='store',type=float, dest='gap_length',default=0,help='separation distance between successive hinge cuts.')
+      self.arg_parser.add_argument('--sep_distance',action='store',type=float, dest='sep_distance',default=0,help='distance between successive lines of hinge cuts.')
 
   def effect(self):
     
@@ -67,18 +70,18 @@ class HingeCuts(inkex.Effect):
     # which direction are we cutting
     dir = self.options.direction
     # starting cut length. Will be adjusted for get an integer number of cuts in the y-direction.
-    l = self.unittouu(str(self.options.cut_length) + unit)
+    l = self.svg.unittouu(str(self.options.cut_length) + unit)
     # cut separation in the y-direction
-    d = self.unittouu(str(self.options.gap_length) + unit)
+    d = self.svg.unittouu(str(self.options.gap_length) + unit)
     # starting separation between lines of cuts in the x-direction. Will be adjusted to get an integer
     # number of cut lines in the x-direction.
-    dd = self.unittouu(str(self.options.sep_distance) + unit)
+    dd = self.svg.unittouu(str(self.options.sep_distance) + unit)
     
     # get selected nodes
-    if self.selected:
-      # put lines on the current layer
-      parent = self.current_layer
-      for id, node in self.selected.iteritems():
+    if self.svg.selected:
+      # put lines on the current layer        
+      parent = self.svg.get_current_layer()
+      for id, node in self.svg.selected.items():
       #        inkex.debug("id:" + id)
       #         for key in node.attrib.keys():
       #           inkex.debug(key + ": " + node.get(key))
@@ -99,17 +102,18 @@ class HingeCuts(inkex.Effect):
         for line in lines:
           s = s + "M %s, %s L %s, %s " % (line['x1'], line['y1'], line['x2'], line['y2'])
         # add the path to the document
-        style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width': self.unittouu("0.1 mm")}
-        drw = {'style':simplestyle.formatStyle(style), 'd': s}
-        hinge = inkex.etree.SubElement(parent, inkex.addNS('path', 'svg'), drw)
+        style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width': self.svg.unittouu("0.1 mm")}
+        # drw = {'style':simplestyle.formatStyle(style), 'd': s}
+        drw = {'style':str(inkex.Style(style)), 'd': s}
+        hinge = etree.SubElement(parent, inkex.addNS('path', 'svg'), drw)
         # add a description element to hold the parameters used to create the cut lines
-        desc = inkex.etree.SubElement(hinge, inkex.addNS('desc', 'svg'))
+        desc = etree.SubElement(hinge, inkex.addNS('desc', 'svg'))
         desc.text = "Hinge cut parameters: actual(requested)\n" \
           "cut length: %.2f %s (%.2f %s)\n" \
           "gap length: %.2f %s (%.2f %s)\n" \
-          "separation distance: %.2f %s (%.2f %s)" % (self.uutounit(l_actual, unit), unit, self.uutounit(l, unit), unit, 
-                                 self.uutounit(d_actual, unit), unit, self.uutounit(d, unit), unit,
-                                 self.uutounit(dd_actual, unit), unit, self.uutounit(dd, unit), unit)
+          "separation distance: %.2f %s (%.2f %s)" % (self.svg.uutounit(l_actual, unit), unit, self.svg.uutounit(l, unit), unit, 
+                                 self.svg.uutounit(d_actual, unit), unit, self.svg.uutounit(d, unit), unit,
+                                 self.svg.uutounit(dd_actual, unit), unit, self.svg.uutounit(dd, unit), unit)
     else:
       inkex.debug("No rectangle(s) have been selected.")
       
@@ -190,6 +194,7 @@ class HingeCuts(inkex.Effect):
         donex = True
     
     return (ret, l, d, dd)
+    
 
   def calcXCutLines(self, x, y, dx, dy, l, d, dd):
     """
@@ -207,7 +212,8 @@ class HingeCuts(inkex.Effect):
     dd will be adjusted so that there is an integral number of cuts in the y-direction.
     """
     ret = []
-    
+
+
     # use l as a starting guess. Adjust it so that we get an integer number of cuts in the y-direction
     # First compute the number of cuts in the x-direction using l. This will not in general be an integer.
     p = (dx-d)/(d+l)
@@ -215,14 +221,14 @@ class HingeCuts(inkex.Effect):
     p = round(p)
     #compute the new l that will result in p cuts in the x-direction.
     l = (dx-d)/p - d
-    
+
     # use dd as a starting guess. Adjust it so that we get an even integer number of cut lines in the y-direction.
     p = dy/dd
     p = round(p)
     if p % 2 == 1:
       p = p + 1
     dd = dy/p
-    
+
     #
     # Rows A cuts
     #
@@ -266,10 +272,10 @@ class HingeCuts(inkex.Effect):
       curry = curry + dd*2.0
       if curry > dy:
         doney = True
-    
+
     return (ret, l, d, dd)
 
 
 # Create effect instance and apply it.
 effect = HingeCuts()
-effect.affect()
+effect.run()
